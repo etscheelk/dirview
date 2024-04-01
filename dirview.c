@@ -4,7 +4,9 @@
 #include <string.h>
 #include <signal.h>
 
+
 #include <tickit.h>
+#include <math.h>
 
 #define streq(a,b) (!strcmp(a,b))
 
@@ -44,10 +46,18 @@ static int on_expose(TickitWindow *win, TickitEventFlags flags, void *_info, voi
 	TickitExposeEventInfo *info = _info;
 	TickitRenderBuffer *rb = info->rb;
 
+	int cols = info->rect.cols,
+		lines = info->rect.lines;
+
+	int midx = cols / 2, 
+		midy = lines / 2;
+
+
 	// I don't know what this does
 	tickit_renderbuffer_eraserect(rb, &info->rect);
 
 	tickit_renderbuffer_goto(rb, 0, 0);
+	
 
 	tickit_renderbuffer_savepen(rb);
 
@@ -60,6 +70,17 @@ static int on_expose(TickitWindow *win, TickitEventFlags flags, void *_info, voi
 	tickit_pen_set_colour_attr_desc(penColors[0].pen_fg, TICKIT_PEN_FG, "hi-cyan");
 	tickit_renderbuffer_setpen(rb, penColors[0].pen_fg);
 
+	for (int y = 0; y < lines; ++y)
+	for (int x = 0; x < cols; ++x)
+	{
+		
+		double dist = sqrt(pow((midx - x), 2) + pow((midy - y), 2));
+
+		if (dist < 20.0)
+		{
+			tickit_renderbuffer_text_at(rb, y, x, "B");
+		}
+	}
 	// Command to render text to the screen. 
 	// TODO: This doesn't print text yet and I don't know why
 	//		--> I had this function as on_focus instead of on_expose
@@ -71,7 +92,7 @@ static int on_expose(TickitWindow *win, TickitEventFlags flags, void *_info, voi
 	}
 
 	// fancy line :)
-	tickit_renderbuffer_hline_at(rb, 3, 0, 30, TICKIT_LINE_DOUBLE, 0);
+	tickit_renderbuffer_hline_at(rb, 3, 0, 30, TICKIT_LINE_DOUBLE, (TickitLineCaps) 0);
 
 	tickit_renderbuffer_restore(rb);
 
@@ -114,8 +135,8 @@ int main(int argc, char *argv[])
 		return 1;
   	}
 
-	tickit_window_bind_event(root, TICKIT_WINDOW_ON_EXPOSE, 0, &on_expose, NULL);
-	tickit_window_bind_event(root, TICKIT_WINDOW_ON_KEY, 0, &checksuspend, NULL);
+	tickit_window_bind_event(root, TICKIT_WINDOW_ON_EXPOSE, (TickitBindFlags) 0, &on_expose, NULL);
+	tickit_window_bind_event(root, TICKIT_WINDOW_ON_KEY, (TickitBindFlags) 0, &checksuspend, NULL);
 
 	tickit_run(t);
 
