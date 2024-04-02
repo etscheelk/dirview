@@ -78,18 +78,20 @@ static int on_expose(TickitWindow *win, TickitEventFlags flags, void *_info, voi
 
 	
 	
-	tickit_pen_set_bool_attr(circlePen, (TickitPenAttr) TICKIT_PEN_STRIKE, true);
+	tickit_pen_set_bool_attr(circlePen, (TickitPenAttr) TICKIT_PEN_STRIKE, false);
 	tickit_renderbuffer_setpen(rb, circlePen);
 
 	// tickit_renderbuffer_textf_at(rb, 2, 2, "NumCols: %3d\tNumLines: %3d", cols, lines);
-	tickit_renderbuffer_textf(rb, "NumCols: %3d\tNumLines: %3d", cols, lines);
+	tickit_renderbuffer_textf(rb, "NumCols: %d NumLines: %d", cols, lines);
+	// tickit_renderbuffer_text(rb, "hello world!");
+	tickit_renderbuffer_textf_at(rb, 5, 5, "Hello there :)%s", "\nmeow");
 
 	tickit_renderbuffer_save(rb);
 	for (int y = 0; y < lines; ++y)
 	for (int x = 0; x < cols; ++x)
 	{
 		
-		double dist = sqrt(pow((midx - x), 2) + pow((midy - y*2), 2));
+		double dist = sqrt(pow((midx - x), 2) + pow((midy - y), 2));
 
 		if (dist < 20.0)
 		{
@@ -139,6 +141,7 @@ static int checksuspend(TickitWindow *win, TickitEventFlags flags, void *_info, 
 
 int main(int argc, char *argv[]) 
 {
+	tickit_debug_enabled = true;
     printf("Welcome to dirview. It's probably not complete yet.\n");
 
     Tickit *t = tickit_new_stdtty();
