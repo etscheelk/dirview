@@ -84,7 +84,9 @@ static int on_expose(TickitWindow *win, TickitEventFlags flags, void *_info, voi
 	// tickit_renderbuffer_textf_at(rb, 2, 2, "NumCols: %3d\tNumLines: %3d", cols, lines);
 	tickit_renderbuffer_textf(rb, "NumCols: %d NumLines: %d", cols, lines);
 	// tickit_renderbuffer_text(rb, "hello world!");
-	tickit_renderbuffer_textf_at(rb, 5, 5, "Hello there :)%s", "\nmeow");
+	tickit_renderbuffer_textf_at(rb, 5, 5, "Hello there :)%s", " meow");
+
+	tickit_renderbuffer_text_at(rb, 6, 5, "Escape\tcharacter?");
 
 	tickit_renderbuffer_save(rb);
 	for (int y = 0; y < lines; ++y)
