@@ -34,17 +34,17 @@ TickitPenRGB8 blue = {.r = 10, .g = 100, .b = 200};
  * 
  * I don't know, I'll have to test. 
  */
-struct
-{
-	char *name;
-	int val;
+// struct
+// {
+// 	char *name;
+// 	int val;
 
-	TickitPen *pen_fg, *pen_fg_hi, *pen_bg, *pen_bg_hi;
-} penColors[] = 
-{
-	{"blue", 1},
-	{"red", 1}
-};
+// 	TickitPen *pen_fg, *pen_fg_hi, *pen_bg, *pen_bg_hi;
+// } penColors[] = 
+// {
+// 	{"blue", 1},
+// 	{"red", 1}
+// };
 
 
 TickitRect termRect;
@@ -97,83 +97,7 @@ static int rootOnExpose (TickitWindow *win, TickitEventFlags flags, void *_info,
 
 	int midx = cols / 2, 
 		midy = lines / 2;
-
 	
-
-
-	// I don't know what this does
-	tickit_renderbuffer_eraserect(rb, &info->rect);
-
-	tickit_renderbuffer_goto(rb, 0, 0);
-	
-
-	tickit_renderbuffer_savepen(rb);
-
-
-	if(!penColors[0].pen_fg)
-      penColors[0].pen_fg = tickit_pen_new_attrs(TICKIT_PEN_FG, penColors[0].val, 0);
-	
-	
-	// tickit_pen_set_colour_attr_rgb8(penColors[0].pen_fg, TICKIT_PEN_FG, (TickitPenRGB8){.r=10,.g=50,.b=200});
-
-
-	TickitPen *circlePen = tickit_pen_new();
-	
-	bool a1 = tickit_pen_set_colour_attr_desc(circlePen, TICKIT_PEN_FG, "white");
-	bool a2 = tickit_pen_set_colour_attr_desc(circlePen, TICKIT_PEN_BG, "hi-cyan");
-
-	TickitPen *cursorPen = tickit_pen_new();
-	tickit_pen_set_colour_attr_desc(cursorPen, TICKIT_PEN_FG, "hi-white");
-	tickit_pen_set_colour_attr_desc(cursorPen, TICKIT_PEN_BG, "grey");
-	tickit_pen_set_bool_attr(cursorPen, TICKIT_PEN_BLINK, true);
-	
-	tickit_pen_set_bool_attr(circlePen, (TickitPenAttr) TICKIT_PEN_STRIKE, false);
-	tickit_renderbuffer_setpen(rb, circlePen);
-
-	// tickit_renderbuffer_textf_at(rb, 2, 2, "NumCols: %3d\tNumLines: %3d", cols, lines);
-	tickit_renderbuffer_textf(rb, "NumCols: %d NumLines: %d", cols, lines);
-	// tickit_renderbuffer_text(rb, "hello world!");
-	tickit_renderbuffer_textf_at(rb, 5, 5, "Hello there :)%s", " meow");
-
-	tickit_renderbuffer_text_at(rb, 6, 5, "Escape\tcharacter?");
-
-	tickit_renderbuffer_save(rb);
-	for (int y = 0; y < lines; ++y)
-	for (int x = 0; x < cols; ++x)
-	{
-		
-		double dist = sqrt(pow((midx - x), 2) + pow((midy - y), 2));
-
-		if (dist < 20.0)
-		{
-			tickit_renderbuffer_text_at(rb, y, x, "OO");
-		}
-	}
-	tickit_renderbuffer_restore(rb);
-
-	tickit_pen_set_colour_attr_desc(penColors[0].pen_fg, TICKIT_PEN_FG, "hi-cyan");
-	tickit_renderbuffer_setpen(rb, penColors[0].pen_fg);
-	// Command to render text to the screen. 
-	// TODO: This doesn't print text yet and I don't know why
-	//		--> I had this function as on_focus instead of on_expose
-	tickit_renderbuffer_goto(rb, 30, 0);
-	tickit_renderbuffer_textf(rb, "blue foreground? %s", penColors[0].name);
-
-	for (int i = 0; i < 200; ++i)
-	{
-		tickit_renderbuffer_text(rb, ".");
-	}
-
-	// fancy line :)
-	tickit_renderbuffer_hline_at(rb, 31, 0, 30, TICKIT_LINE_DOUBLE, (TickitLineCaps) 0);
-
-	tickit_renderbuffer_restore(rb);
-
-	tickit_renderbuffer_text(rb, "     ");
-
-
-	tickit_renderbuffer_setpen(rb, cursorPen);
-	tickit_renderbuffer_text_at(rb, lines-1, 0, "> ");
 
 	return 1;
 }
@@ -225,23 +149,26 @@ static int typerOnExpose(TickitWindow *win, TickitEventFlags flags, void *_info,
 		typerBuffer = malloc(rect.cols * sizeof(char));
 	}
 
-	if (lastKey.str == NULL) return 0;
-
-	
-
-	// printf("typed exposed\n");
-
+	// Clear the window anew each time
 	tickit_renderbuffer_goto(rb, 0, 0);
 	tickit_renderbuffer_clear(rb);
 
+
 	TickitPen *p = tickit_pen_new();
 	tickit_pen_set_colour_attr_desc(p, TICKIT_PEN_FG, "white");
+	tickit_pen_set_bool_attr(p, TICKIT_PEN_BLINK, true);
 	tickit_renderbuffer_setpen(rb, p);
-
 	tickit_renderbuffer_text(rb, "> ");
 
-	tickit_renderbuffer_text(rb, lastKey.str);
-	// tickit_renderbuffer_textf(rb, "%d", tickit_renderbuffer_get_span(rb, 0, 0, NULL, NULL, 20));
+	if (lastKey.str == NULL) return 0;
+
+	tickit_pen_set_bool_attr(p, TICKIT_PEN_BLINK, false);
+	tickit_renderbuffer_setpen(rb, p);
+
+	tickit_renderbuffer_textf(rb, "%s", );
+	// tickit_renderbuffer_text(rb, lastKey.str);
+
+
 
 	return 1;
 }
@@ -277,7 +204,8 @@ int main(int argc, char *argv[])
 	}
 	tickit_window_bind_event(root, (TickitWindowEvent) TICKIT_WINDOW_ON_KEY, (TickitBindFlags) 0, &rootOnKey, NULL);
 	tickit_window_bind_event(typer, TICKIT_WINDOW_ON_EXPOSE, (TickitBindFlags) 0, &typerOnExpose, NULL);
-	
+	tickit_window_expose(typer, NULL);
+
 	tickit_run(t);
 
 	tickit_window_close(root);
