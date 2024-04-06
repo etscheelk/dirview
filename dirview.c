@@ -132,6 +132,8 @@ static int rootOnKey(TickitWindow *win, TickitEventFlags flags, void *_info, voi
 		// return 0;
 	}
 
+	// strcat(typerBuffer, lastKey.str);
+
 	tickit_window_expose(typer, (TickitRect*) NULL);
 
 	return 1;
@@ -144,10 +146,11 @@ static int typerOnExpose(TickitWindow *win, TickitEventFlags flags, void *_info,
 	TickitRenderBuffer *rb = info->rb;
 	TickitRect rect = info->rect;
 	
-	if (!typerBuffer)
+	if (typerBuffer == NULL)
 	{
 		typerBuffer = malloc(rect.cols * sizeof(char));
 	}
+
 
 	// Clear the window anew each time
 	tickit_renderbuffer_goto(rb, 0, 0);
@@ -162,10 +165,12 @@ static int typerOnExpose(TickitWindow *win, TickitEventFlags flags, void *_info,
 
 	if (lastKey.str == NULL) return 0;
 
+	strcat(typerBuffer, lastKey.str);
 	tickit_pen_set_bool_attr(p, TICKIT_PEN_BLINK, false);
 	tickit_renderbuffer_setpen(rb, p);
 
-	tickit_renderbuffer_textf(rb, "%s", );
+	tickit_renderbuffer_textf(rb, "%s", typerBuffer);
+	// tickit_renderbuffer_text(rb, typerBuffer);
 	// tickit_renderbuffer_text(rb, lastKey.str);
 
 
