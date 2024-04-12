@@ -49,14 +49,14 @@ TickitPenRGB8 blue = {.r = 10, .g = 100, .b = 200};
 
 TickitRect termRect;
 
-TickitWindow *root;
-TickitWindow *typer;
+TickitWindow *root = NULL;
+TickitWindow *typer = NULL;
 
 // Buffer for the text we store in the typer. Size determined by 2*cols.
 // Declared first in typerOnExpose.
 // free in main.
 // Size is 2*cols for flexibility on window resize (not implemented currently)
-char *typerBuffer; 
+char *typerBuffer = NULL; 
 unsigned short numTyped = 0;
 
 TickitKeyEventInfo lastKey;
@@ -129,10 +129,14 @@ static int rootOnKey(TickitWindow *win, TickitEventFlags flags, void *_info, voi
 		raise(SIGSTOP);
 		tickit_term_resume(term);
 		tickit_window_expose(win, NULL);
-		// return 0;
+		return 1;
 	}
 
-	tickit_window_expose(typer, (TickitRect*) NULL);
+	
+	if (!(info->mod & TICKIT_MOD_ALT) && !(info->mod & TICKIT_MOD_CTRL)) 
+	{
+		tickit_window_expose(typer, (TickitRect*) NULL);
+	}
 
 	return 1;
 }
@@ -146,13 +150,13 @@ static int typerOnExpose(TickitWindow *win, TickitEventFlags flags, void *_info,
 	
 	if (!typerBuffer)
 	{
+		printf("malloced typer buffer\n");
 		typerBuffer = malloc(rect.cols * sizeof(char));
 	}
 
 	// Clear the window anew each time
 	tickit_renderbuffer_goto(rb, 0, 0);
 	tickit_renderbuffer_clear(rb);
-
 
 	TickitPen *p = tickit_pen_new();
 	tickit_pen_set_colour_attr_desc(p, TICKIT_PEN_FG, "white");
@@ -162,13 +166,31 @@ static int typerOnExpose(TickitWindow *win, TickitEventFlags flags, void *_info,
 
 	if (lastKey.str == NULL) return 0;
 
+	printf("\nlen: %d\n", strnlen(lastKey.str, 64));
+
+	// strncat(typerBuffer, lastKey.str, 5);
+
 	tickit_pen_set_bool_attr(p, TICKIT_PEN_BLINK, false);
 	tickit_renderbuffer_setpen(rb, p);
 
-	tickit_renderbuffer_textf(rb, "%s", );
-	// tickit_renderbuffer_text(rb, lastKey.str);
+	tickit_renderbuffer_text(rb, "search_term_:)");
 
+	// tickit_renderbuffer_text(rb, "\b");
 
+	// tickit_renderbuffer_textf(rb, "%s", typerBuffer);
+
+	// printf("\n");
+	tickit_renderbuffer_text(rb, lastKey.str);
+	// tickit_renderbuffer_char(rb, *lastKey.str);
+	// tickit_renderbuffer_text(rb, typerBuffer);
+	// tickit_renderbuffer_textf(rb, "%s", typerBuffer);
+
+	// int i = 0;
+	// while (*(typerBuffer + i) != '\0' )
+	// {
+	// 	printf(" %c", *(typerBuffer + i));
+	// 	i++;
+	// }
 
 	return 1;
 }
@@ -213,6 +235,7 @@ int main(int argc, char *argv[])
 	tickit_unref(t);
 
 	free(typerBuffer);
+	typerBuffer = NULL;
 
     return EXIT_SUCCESS;
 }
