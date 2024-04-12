@@ -148,11 +148,12 @@ static int typerOnExpose(TickitWindow *win, TickitEventFlags flags, void *_info,
 	TickitRenderBuffer *rb = info->rb;
 	TickitRect rect = info->rect;
 	
-	if (!typerBuffer)
+	if (typerBuffer == NULL)
 	{
 		printf("malloced typer buffer\n");
 		typerBuffer = malloc(rect.cols * sizeof(char));
 	}
+
 
 	// Clear the window anew each time
 	tickit_renderbuffer_goto(rb, 0, 0);
