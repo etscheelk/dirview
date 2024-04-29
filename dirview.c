@@ -134,7 +134,30 @@ static int rootOnKey(TickitWindow *root, TickitEventFlags flags, void *_info, vo
 	// If key isn't in combo with ALT or CTRL, send it to the typer
 	if (!(info->mod & TICKIT_MOD_ALT) && !(info->mod & TICKIT_MOD_CTRL)) 
 	{
-		tickit_window_expose(bundle.typer, (TickitRect*) NULL);
+
+		// Backspace
+		if (streq(lastKey.str, "Backspace"))
+		{
+			
+		}
+
+		// Enter
+		// Tab
+		// PageUp
+		// PageDown
+		// Delete
+		// Home
+		// Insert
+		// Up
+		// Down
+		// Left
+		// Right
+
+		// Function 1-12
+		
+		
+		else
+		tickit_window_expose(bundle.typer, (TickitRect *) NULL);
 	}
 
 	return 1;
