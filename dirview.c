@@ -12,53 +12,31 @@
 
 #define streq(a,b) (!strcmp(a,b))
 
+/**
+ * @brief Everything in bundle is the stuff that should be freed or unref'd
+ * at end of program. Dereference or close in reverse order.
+ */
+struct bundle
+{
+	//
+	Tickit *t;
+
+	//
+	TickitWindow *root;
+
+	//
+	TickitWindow *typer;
+
+	// Buffer for the text we store in the typer. Size determined by 2*cols.
+	// Declared first in typerOnExpose.
+	// Size is cols for flexibility on window resize (not implemented currently)
+	char *typerBuffer;
+} bundle = {.t = NULL, .root = NULL, .typer = NULL, .typerBuffer = NULL};
+
 TickitPenRGB8 blue = {.r = 10, .g = 100, .b = 200};
 
-/**
- * If I want to do fuzzy searching on local files, CLI tool fzf
- * 
- */
-
-/**
- * I've never seen a struct created like this before.
- * 
- * I know if there is no name for the struct, it is named
- * for the name following its close brace and then a semicolon.
- * 
- * Based on `examples/demo-pen.c`, this creates an array called in this case
- * penColors with the helpful implicit struct creation {...}, wherein 
- * you can access the TickitPen* by name?? 
- * 
- * This seems to have proper properties of a tickit pen's attributes,
- * as can also be created by `TickitPen *tickit_pen_new_attrs(TickitPenAttr attr, ...)`.
- * 
- * I don't know, I'll have to test. 
- */
-// struct
-// {
-// 	char *name;
-// 	int val;
-
-// 	TickitPen *pen_fg, *pen_fg_hi, *pen_bg, *pen_bg_hi;
-// } penColors[] = 
-// {
-// 	{"blue", 1},
-// 	{"red", 1}
-// };
-
-
 TickitRect termRect;
-
-TickitWindow *root = NULL;
-TickitWindow *typer = NULL;
-
-// Buffer for the text we store in the typer. Size determined by 2*cols.
-// Declared first in typerOnExpose.
-// free in main.
-// Size is 2*cols for flexibility on window resize (not implemented currently)
-char *typerBuffer = NULL; 
 unsigned short numTyped = 0;
-
 TickitKeyEventInfo lastKey;
 
 // Function Declarations
@@ -66,6 +44,29 @@ TickitKeyEventInfo lastKey;
 static int rootOnExpose	(TickitWindow *win, TickitEventFlags flags, void *_info, void *data);
 static int rootOnKey	(TickitWindow *win, TickitEventFlags flags, void *_info, void *data);
 static int typerOnExpose(TickitWindow *win, TickitEventFlags flags, void *_info, void *data);
+
+// Other
+void empty_bundle(void);
+
+/**
+ * If I want to do fuzzy searching on local files, CLI tool fzf
+ * 
+ */
+
+
+
+// Never seen struct created like this before
+// struct
+// {
+// 	char *name;
+// 	int val;
+//
+// 	TickitPen *pen_fg, *pen_fg_hi, *pen_bg, *pen_bg_hi;
+// } penColors[] = 
+// {
+// 	{"blue", 1},
+// 	{"red", 1}
+// };
 
 
 // TODO: Typer window at bottom, for user to type text in
@@ -132,10 +133,16 @@ static int rootOnKey(TickitWindow *win, TickitEventFlags flags, void *_info, voi
 		return 1;
 	}
 
+	// if user types Meta-q or Meta-Q, quit the prorgram
+	if (info->mod == TICKIT_MOD_ALT && (streq(info->str, "M-q") || streq(info->str, "M-Q")))
+	{
+		empty_bundle();
+	}
+
 	
 	if (!(info->mod & TICKIT_MOD_ALT) && !(info->mod & TICKIT_MOD_CTRL)) 
 	{
-		tickit_window_expose(typer, (TickitRect*) NULL);
+		tickit_window_expose(bundle.typer, (TickitRect*) NULL);
 	}
 
 	return 1;
@@ -148,16 +155,16 @@ static int typerOnExpose(TickitWindow *win, TickitEventFlags flags, void *_info,
 	TickitRenderBuffer *rb = info->rb;
 	TickitRect rect = info->rect;
 	
-	if (typerBuffer == NULL)
+	if (bundle.typerBuffer == NULL)
 	{
 		printf("malloced typer buffer\n");
-		typerBuffer = malloc(rect.cols * sizeof(char));
+		bundle.typerBuffer = malloc(rect.cols * sizeof(char));
 	}
 
 	// First time running will auto expose typer and this avoids segfault
 	if (lastKey.str == NULL) return 0;
 
-	strncat(typerBuffer, lastKey.str, 1);
+	strncat(bundle.typerBuffer, lastKey.str, 1);
 
 	// Clear the window anew each time
 	tickit_renderbuffer_goto(rb, 0, 0);
@@ -184,7 +191,7 @@ static int typerOnExpose(TickitWindow *win, TickitEventFlags flags, void *_info,
 
 	// printf("\n");
 	// tickit_renderbuffer_text(rb, lastKey.str);
-	tickit_renderbuffer_textf(rb, "%s", typerBuffer);
+	tickit_renderbuffer_textf(rb, "%s", bundle.typerBuffer);
 	// tickit_renderbuffer_char(rb, *lastKey.str);
 	// tickit_renderbuffer_text(rb, typerBuffer);
 	// tickit_renderbuffer_textf(rb, "%s", typerBuffer);
@@ -199,47 +206,57 @@ static int typerOnExpose(TickitWindow *win, TickitEventFlags flags, void *_info,
 	return 1;
 }
 
+// Free the elements of bundle in reverse order
+void empty_bundle(void)
+{
+	free(bundle.typerBuffer);
+	tickit_window_close(bundle.typer); 
+	tickit_window_close(bundle.root);
+	tickit_unref(bundle.t);
+	
+	exit(EXIT_SUCCESS);
+}
+
 int main(int argc, char *argv[]) 
 {
 	tickit_debug_enabled = true;
     printf("Welcome to dirview. It's probably not complete yet.\n");
 
-    Tickit *t = tickit_new_stdtty();
-    if(!t) 
+	bundle.t = (Tickit *) tickit_new_stdtty();
+    if(bundle.t == NULL) 
 	{
 		fprintf(stderr, "Cannot create Tickit - %s\n", strerror(errno));
 		return 1;
     }
 
-	root = tickit_get_rootwin(t);
-	if(!root) 
+	bundle.root = (TickitWindow *) tickit_get_rootwin(bundle.t);
+	if(bundle.root == NULL) 
 	{
 		fprintf(stderr, "Cannot create root window - %s\n", strerror(errno));
 		return 1;
   	}
-	termRect = tickit_window_get_geometry(root);
-	tickit_window_bind_event(root, TICKIT_WINDOW_ON_EXPOSE, (TickitBindFlags) 0, &rootOnExpose, NULL);
-	// tickit_window_bind_event(root, TICKIT_WINDOW_ON_KEY, (TickitBindFlags) 0, &checksuspend, NULL);
+	termRect = tickit_window_get_geometry(bundle.root);
+	tickit_window_bind_event(bundle.root, TICKIT_WINDOW_ON_EXPOSE, (TickitBindFlags) 0, &rootOnExpose, NULL);
 	
+	// check suspend is CTRL Z signal
+	// tickit_window_bind_event(root, TICKIT_WINDOW_ON_KEY, (TickitBindFlags) 0, &checksuspend, NULL);
 
-	typer = tickit_window_new(root, (TickitRect){.top = termRect.lines-1, .left = 0, .lines = 2, .cols = termRect.cols}, (TickitWindowFlags) 0);
-	if (!typer) 
+	bundle.typer = (TickitWindow *) tickit_window_new(bundle.root, (TickitRect){.top = termRect.lines-1, .left = 0, .lines = 2, .cols = termRect.cols}, (TickitWindowFlags) 0);
+	if (bundle.typer == NULL) 
 	{
 		fprintf(stderr, "Cannot create typer window - %s\n", strerror(errno));
 		return 1;
 	} 
-	tickit_window_bind_event(root, (TickitWindowEvent) TICKIT_WINDOW_ON_KEY, (TickitBindFlags) 0, &rootOnKey, NULL);
-	tickit_window_bind_event(typer, (TickitWindowEvent) TICKIT_WINDOW_ON_EXPOSE, (TickitBindFlags) 0, &typerOnExpose, NULL);
-	tickit_window_expose(typer, NULL);
 
-	tickit_run(t);
+	tickit_window_bind_event(bundle.root, (TickitWindowEvent) TICKIT_WINDOW_ON_KEY, (TickitBindFlags) 0, &rootOnKey, NULL);
+	tickit_window_bind_event(bundle.typer, (TickitWindowEvent) TICKIT_WINDOW_ON_EXPOSE, (TickitBindFlags) 0, &typerOnExpose, NULL);
+	tickit_window_expose(bundle.typer, NULL);
 
-	tickit_window_close(root);
+	tickit_run(bundle.t);
 
-	tickit_unref(t);
-
-	free(typerBuffer);
-	typerBuffer = NULL;
+	// I don't think we could reach here?
+	// Seems like only proper way to quit right now is Meta-Q
+	empty_bundle();
 
     return EXIT_SUCCESS;
 }
