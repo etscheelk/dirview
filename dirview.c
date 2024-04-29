@@ -154,6 +154,10 @@ static int typerOnExpose(TickitWindow *win, TickitEventFlags flags, void *_info,
 		typerBuffer = malloc(rect.cols * sizeof(char));
 	}
 
+	// First time running will auto expose typer and this avoids segfault
+	if (lastKey.str == NULL) return 0;
+
+	strncat(typerBuffer, lastKey.str, 1);
 
 	// Clear the window anew each time
 	tickit_renderbuffer_goto(rb, 0, 0);
@@ -165,23 +169,22 @@ static int typerOnExpose(TickitWindow *win, TickitEventFlags flags, void *_info,
 	tickit_renderbuffer_setpen(rb, p);
 	tickit_renderbuffer_text(rb, "> ");
 
-	if (lastKey.str == NULL) return 0;
-
-	printf("\nlen: %d\n", strnlen(lastKey.str, 64));
+	// printf("\nlen: %d\n", strnlen(lastKey.str, 64));
 
 	// strncat(typerBuffer, lastKey.str, 5);
 
 	tickit_pen_set_bool_attr(p, TICKIT_PEN_BLINK, false);
 	tickit_renderbuffer_setpen(rb, p);
 
-	tickit_renderbuffer_text(rb, "search_term_:)");
+	// tickit_renderbuffer_text(rb, "search_term_:)");
 
 	// tickit_renderbuffer_text(rb, "\b");
 
 	// tickit_renderbuffer_textf(rb, "%s", typerBuffer);
 
 	// printf("\n");
-	tickit_renderbuffer_text(rb, lastKey.str);
+	// tickit_renderbuffer_text(rb, lastKey.str);
+	tickit_renderbuffer_textf(rb, "%s", typerBuffer);
 	// tickit_renderbuffer_char(rb, *lastKey.str);
 	// tickit_renderbuffer_text(rb, typerBuffer);
 	// tickit_renderbuffer_textf(rb, "%s", typerBuffer);
@@ -224,9 +227,9 @@ int main(int argc, char *argv[])
 	{
 		fprintf(stderr, "Cannot create typer window - %s\n", strerror(errno));
 		return 1;
-	}
+	} 
 	tickit_window_bind_event(root, (TickitWindowEvent) TICKIT_WINDOW_ON_KEY, (TickitBindFlags) 0, &rootOnKey, NULL);
-	tickit_window_bind_event(typer, TICKIT_WINDOW_ON_EXPOSE, (TickitBindFlags) 0, &typerOnExpose, NULL);
+	tickit_window_bind_event(typer, (TickitWindowEvent) TICKIT_WINDOW_ON_EXPOSE, (TickitBindFlags) 0, &typerOnExpose, NULL);
 	tickit_window_expose(typer, NULL);
 
 	tickit_run(t);
