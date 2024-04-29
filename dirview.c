@@ -36,14 +36,17 @@ struct bundle
 TickitPenRGB8 blue = {.r = 10, .g = 100, .b = 200};
 
 TickitRect termRect;
+
 unsigned short numTyped = 0;
+unsigned short typerWidth = 0;
+
 TickitKeyEventInfo lastKey;
 
 // Function Declarations
-// Events
-static int rootOnExpose	(TickitWindow *win, TickitEventFlags flags, void *_info, void *data);
-static int rootOnKey	(TickitWindow *win, TickitEventFlags flags, void *_info, void *data);
-static int typerOnExpose(TickitWindow *win, TickitEventFlags flags, void *_info, void *data);
+
+static int rootOnExpose	(TickitWindow *root, TickitEventFlags flags, void *_info, void *data);
+static int rootOnKey	(TickitWindow *root, TickitEventFlags flags, void *_info, void *data);
+static int typerOnExpose(TickitWindow *typer, TickitEventFlags flags, void *_info, void *data);
 
 // Other
 void empty_bundle(void);
@@ -55,18 +58,7 @@ void empty_bundle(void);
 
 
 
-// Never seen struct created like this before
-// struct
-// {
-// 	char *name;
-// 	int val;
-//
-// 	TickitPen *pen_fg, *pen_fg_hi, *pen_bg, *pen_bg_hi;
-// } penColors[] = 
-// {
-// 	{"blue", 1},
-// 	{"red", 1}
-// };
+
 
 
 // TODO: Typer window at bottom, for user to type text in
@@ -81,13 +73,13 @@ void empty_bundle(void);
 /**
  * @brief Expose event function called for root on spawn and any subsequent times expose is called. 
  * 
- * @param win 
+ * @param root 
  * @param flags 
  * @param _info 
  * @param data 
  * @return int 
  */
-static int rootOnExpose (TickitWindow *win, TickitEventFlags flags, void *_info, void *data)
+static int rootOnExpose (TickitWindow *root, TickitEventFlags flags, void *_info, void *data)
 {
 	TickitExposeEventInfo *info = _info;
 	TickitRenderBuffer *rb = info->rb;
@@ -108,13 +100,13 @@ static int rootOnExpose (TickitWindow *win, TickitEventFlags flags, void *_info,
  * Modifies `lastKey` global variable.
  * Check if CTRL+Z was pressed, if so pauses the terminal. Can be replaced with `fg`. 
  * 
- * @param win root
+ * @param root root
  * @param flags 
  * @param _info TickitKeyEventInfo
- * @param data 
+ * @param data custom data
  * @return int 
  */
-static int rootOnKey(TickitWindow *win, TickitEventFlags flags, void *_info, void *data)
+static int rootOnKey(TickitWindow *root, TickitEventFlags flags, void *_info, void *data)
 {
 	TickitKeyEventInfo *info = _info;
 
@@ -125,11 +117,11 @@ static int rootOnKey(TickitWindow *win, TickitEventFlags flags, void *_info, voi
 
 	if (info->mod == TICKIT_MOD_CTRL && streq(info->str, "C-z")) 
 	{
-		TickitTerm *term = tickit_window_get_term(win);
+		TickitTerm *term = tickit_window_get_term(root);
 		tickit_term_pause(term);
 		raise(SIGSTOP);
 		tickit_term_resume(term);
-		tickit_window_expose(win, NULL);
+		tickit_window_expose(root, NULL);
 		return 1;
 	}
 
@@ -138,8 +130,8 @@ static int rootOnKey(TickitWindow *win, TickitEventFlags flags, void *_info, voi
 	{
 		empty_bundle();
 	}
-
 	
+	// If key isn't in combo with ALT or CTRL, send it to the typer
 	if (!(info->mod & TICKIT_MOD_ALT) && !(info->mod & TICKIT_MOD_CTRL)) 
 	{
 		tickit_window_expose(bundle.typer, (TickitRect*) NULL);
@@ -148,7 +140,19 @@ static int rootOnKey(TickitWindow *win, TickitEventFlags flags, void *_info, voi
 	return 1;
 }
 
-static int typerOnExpose(TickitWindow *win, TickitEventFlags flags, void *_info, void *data)
+/**
+ * @brief Any time the typer is exposed, this function will run. Typer will be
+ * auto exposed at launch and any subsequent times from rootOnKey.
+ * 
+ * Works with bundle.typerBuffer and automatically mallocs it.
+ * 
+ * @param typer 
+ * @param flags 
+ * @param _info 
+ * @param data 
+ * @return int 
+ */
+static int typerOnExpose(TickitWindow *typer, TickitEventFlags flags, void *_info, void *data)
 {
 	TickitExposeEventInfo *info = _info;
 
@@ -157,14 +161,9 @@ static int typerOnExpose(TickitWindow *win, TickitEventFlags flags, void *_info,
 	
 	if (bundle.typerBuffer == NULL)
 	{
-		printf("malloced typer buffer\n");
-		bundle.typerBuffer = malloc(rect.cols * sizeof(char));
+		typerWidth = rect.cols;
+		bundle.typerBuffer = malloc(typerWidth * sizeof(char));
 	}
-
-	// First time running will auto expose typer and this avoids segfault
-	if (lastKey.str == NULL) return 0;
-
-	strncat(bundle.typerBuffer, lastKey.str, 1);
 
 	// Clear the window anew each time
 	tickit_renderbuffer_goto(rb, 0, 0);
@@ -176,37 +175,30 @@ static int typerOnExpose(TickitWindow *win, TickitEventFlags flags, void *_info,
 	tickit_renderbuffer_setpen(rb, p);
 	tickit_renderbuffer_text(rb, "> ");
 
-	// printf("\nlen: %d\n", strnlen(lastKey.str, 64));
-
-	// strncat(typerBuffer, lastKey.str, 5);
+	// First time running will auto expose typer and this avoids segfault
+	// We still want it to continue past this so the blinking cursor prints
+	if (lastKey.str == NULL) return 0;
+	
+	if (numTyped < typerWidth)
+	{
+		strncat(bundle.typerBuffer, lastKey.str, 1);
+		numTyped++;
+	}
 
 	tickit_pen_set_bool_attr(p, TICKIT_PEN_BLINK, false);
 	tickit_renderbuffer_setpen(rb, p);
 
-	// tickit_renderbuffer_text(rb, "search_term_:)");
-
-	// tickit_renderbuffer_text(rb, "\b");
-
-	// tickit_renderbuffer_textf(rb, "%s", typerBuffer);
-
-	// printf("\n");
-	// tickit_renderbuffer_text(rb, lastKey.str);
 	tickit_renderbuffer_textf(rb, "%s", bundle.typerBuffer);
-	// tickit_renderbuffer_char(rb, *lastKey.str);
-	// tickit_renderbuffer_text(rb, typerBuffer);
-	// tickit_renderbuffer_textf(rb, "%s", typerBuffer);
 
-	// int i = 0;
-	// while (*(typerBuffer + i) != '\0' )
-	// {
-	// 	printf(" %c", *(typerBuffer + i));
-	// 	i++;
-	// }
+	tickit_pen_unref(p);
 
 	return 1;
 }
 
-// Free the elements of bundle in reverse order
+/**
+ * @brief Dereference or close items in bundle in reverse order
+ * 
+ */
 void empty_bundle(void)
 {
 	free(bundle.typerBuffer);
@@ -216,6 +208,7 @@ void empty_bundle(void)
 	
 	exit(EXIT_SUCCESS);
 }
+
 
 int main(int argc, char *argv[]) 
 {
@@ -229,6 +222,7 @@ int main(int argc, char *argv[])
 		return 1;
     }
 
+
 	bundle.root = (TickitWindow *) tickit_get_rootwin(bundle.t);
 	if(bundle.root == NULL) 
 	{
@@ -237,9 +231,7 @@ int main(int argc, char *argv[])
   	}
 	termRect = tickit_window_get_geometry(bundle.root);
 	tickit_window_bind_event(bundle.root, TICKIT_WINDOW_ON_EXPOSE, (TickitBindFlags) 0, &rootOnExpose, NULL);
-	
-	// check suspend is CTRL Z signal
-	// tickit_window_bind_event(root, TICKIT_WINDOW_ON_KEY, (TickitBindFlags) 0, &checksuspend, NULL);
+
 
 	bundle.typer = (TickitWindow *) tickit_window_new(bundle.root, (TickitRect){.top = termRect.lines-1, .left = 0, .lines = 2, .cols = termRect.cols}, (TickitWindowFlags) 0);
 	if (bundle.typer == NULL) 
@@ -247,6 +239,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Cannot create typer window - %s\n", strerror(errno));
 		return 1;
 	} 
+
 
 	tickit_window_bind_event(bundle.root, (TickitWindowEvent) TICKIT_WINDOW_ON_KEY, (TickitBindFlags) 0, &rootOnKey, NULL);
 	tickit_window_bind_event(bundle.typer, (TickitWindowEvent) TICKIT_WINDOW_ON_EXPOSE, (TickitBindFlags) 0, &typerOnExpose, NULL);
