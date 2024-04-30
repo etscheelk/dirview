@@ -3,7 +3,8 @@
         "tickit.h": "c",
         "unistd.h": "c",
         "strings.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "memory.h": "c"
     },
     "C_Cpp.errorSquiggles": "enabled"
 }

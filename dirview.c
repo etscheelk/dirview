@@ -3,9 +3,10 @@
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
+
 #include <string.h>
 #include <strings.h>
-
+#include <memory.h> // Microsoft safe memory movement
 
 #include <tickit.h>
 #include <math.h>
@@ -16,7 +17,7 @@
  * @brief Everything in bundle is the stuff that should be freed or unref'd
  * at end of program. Dereference or close in reverse order.
  */
-struct bundle
+static struct bundle
 {
 	//
 	Tickit *t;
@@ -33,23 +34,50 @@ struct bundle
 	char *typerBuffer;
 } bundle = {.t = NULL, .root = NULL, .typer = NULL, .typerBuffer = NULL};
 
-TickitPenRGB8 blue = {.r = 10, .g = 100, .b = 200};
 
-TickitRect termRect;
+static enum extraKey
+{
+	Normal,
+	Backspace,
+	Tab,
+	PageUp,
+	PageDown,
+	Up,
+	Down,
+	Left,
+	Right,
+	Home,
+	End,
+	Insert,
+	Delete,
+	Function
+};
 
-unsigned short numTyped = 0;
-unsigned short typerWidth = 0;
+static struct extraKeyInfo
+{
+	enum extraKey ex;
+	
+	// Optional for function key number
+	uint8_t num;
+} extraKeyInfo = {.ex = Normal};
 
-TickitKeyEventInfo lastKey;
+
+static TickitPenRGB8 blue = {.r = 10, .g = 100, .b = 200};
+
+static TickitRect termRect;
+
+static uint16_t numTyped = 0;
+static uint16_t typerWidth = 0;
+
+static TickitKeyEventInfo lastKey;
 
 // Function Declarations
 
-static int rootOnExpose	(TickitWindow *root, TickitEventFlags flags, void *_info, void *data);
-static int rootOnKey	(TickitWindow *root, TickitEventFlags flags, void *_info, void *data);
+static int rootOnExpose	(TickitWindow  *root, TickitEventFlags flags, void *_info, void *data);
+static int rootOnKey	(TickitWindow  *root, TickitEventFlags flags, void *_info, void *data);
 static int typerOnExpose(TickitWindow *typer, TickitEventFlags flags, void *_info, void *data);
 
-// Other
-void empty_bundle(void);
+static void empty_bundle(void);
 
 /**
  * If I want to do fuzzy searching on local files, CLI tool fzf
@@ -110,6 +138,8 @@ static int rootOnKey(TickitWindow *root, TickitEventFlags flags, void *_info, vo
 {
 	TickitKeyEventInfo *info = _info;
 
+	
+
 	if(lastKey.str) free((void *)lastKey.str);
 
 	lastKey = *info;
@@ -134,12 +164,8 @@ static int rootOnKey(TickitWindow *root, TickitEventFlags flags, void *_info, vo
 	// If key isn't in combo with ALT or CTRL, send it to the typer
 	if (!(info->mod & TICKIT_MOD_ALT) && !(info->mod & TICKIT_MOD_CTRL)) 
 	{
-
 		// Backspace
-		if (streq(lastKey.str, "Backspace"))
-		{
-			
-		}
+		if (streq(lastKey.str, "Backspace")) extraKeyInfo.ex = Backspace;
 
 		// Enter
 		// Tab
@@ -155,8 +181,8 @@ static int rootOnKey(TickitWindow *root, TickitEventFlags flags, void *_info, vo
 
 		// Function 1-12
 		
-		
-		else
+		else extraKeyInfo.ex = Normal;
+
 		tickit_window_expose(bundle.typer, (TickitRect *) NULL);
 	}
 
@@ -178,13 +204,12 @@ static int rootOnKey(TickitWindow *root, TickitEventFlags flags, void *_info, vo
 static int typerOnExpose(TickitWindow *typer, TickitEventFlags flags, void *_info, void *data)
 {
 	TickitExposeEventInfo *info = _info;
-
 	TickitRenderBuffer *rb = info->rb;
 	TickitRect rect = info->rect;
 	
 	if (bundle.typerBuffer == NULL)
 	{
-		typerWidth = rect.cols;
+		typerWidth = rect.cols - 2; // -1 because of extra gap from "> "
 		bundle.typerBuffer = malloc(typerWidth * sizeof(char));
 	}
 
@@ -197,32 +222,63 @@ static int typerOnExpose(TickitWindow *typer, TickitEventFlags flags, void *_inf
 	tickit_pen_set_bool_attr(p, TICKIT_PEN_BLINK, true);
 	tickit_renderbuffer_setpen(rb, p);
 	tickit_renderbuffer_text(rb, "> ");
-
-	// First time running will auto expose typer and this avoids segfault
-	// We still want it to continue past this so the blinking cursor prints
-	if (lastKey.str == NULL) return 0;
-	
-	if (numTyped < typerWidth)
-	{
-		strncat(bundle.typerBuffer, lastKey.str, 1);
-		numTyped++;
-	}
-
 	tickit_pen_set_bool_attr(p, TICKIT_PEN_BLINK, false);
 	tickit_renderbuffer_setpen(rb, p);
 
-	tickit_renderbuffer_textf(rb, "%s", bundle.typerBuffer);
+	// Am I really using goto statements? Yes. 
+	// These could be extracted to functions in a typer header file
+	// but ew I have so many global variables (that's bad enough itself)
+	switch(extraKeyInfo.ex) 
+	{
+		case Backspace:
+			goto backspace;
+		default:
+			goto normal;
+	};
 
-	tickit_pen_unref(p);
 
-	return 1;
+	backspace:
+	{
+		// avoids underflow
+		if (numTyped != 0) numTyped--;
+
+		bundle.typerBuffer[numTyped] = '\0';
+
+		tickit_renderbuffer_textf(rb, "%s", bundle.typerBuffer);
+
+		goto exit;
+	}
+	
+
+	normal:
+	{
+		// First time running will auto expose typer and this avoids segfault
+		if (lastKey.str == NULL) goto exit;
+		
+		if (numTyped < typerWidth)
+		{
+			strncat(bundle.typerBuffer, lastKey.str, 10);
+			numTyped++;
+		}
+
+		tickit_renderbuffer_textf(rb, "%s", bundle.typerBuffer);
+		goto exit;
+	}
+
+
+	exit:
+	{
+		tickit_pen_unref(p);
+		return 1;
+	}
 }
+
 
 /**
  * @brief Dereference or close items in bundle in reverse order
  * 
  */
-void empty_bundle(void)
+static void empty_bundle(void)
 {
 	free(bundle.typerBuffer);
 	tickit_window_close(bundle.typer); 
