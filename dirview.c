@@ -13,6 +13,8 @@
 
 #define streq(a,b) (!strcmp(a,b))
 
+
+
 /**
  * @brief Everything in bundle is the stuff that should be freed or unref'd
  * at end of program. Dereference or close in reverse order.
@@ -204,19 +206,26 @@ static int rootOnKey(TickitWindow *root, TickitEventFlags flags, void *_info, vo
 static int typerOnExpose(TickitWindow *typer, TickitEventFlags flags, void *_info, void *data)
 {
 	TickitExposeEventInfo *info = _info;
-	TickitRenderBuffer *rb = info->rb;
+	TickitRenderBuffer *rb = info->rb; // does not need to be unrefed
 	TickitRect rect = info->rect;
 	
 	if (bundle.typerBuffer == NULL)
 	{
-		typerWidth = rect.cols - 2; // -1 because of extra gap from "> "
+		typerWidth = rect.cols - 2; // -2 because of extra gap from "> "
 		bundle.typerBuffer = malloc(typerWidth * sizeof(char));
+		
+		// make empty
+		for (int i = 0; i < typerWidth; ++i)
+		{
+			bundle.typerBuffer[i] = '\0';
+		}
 	}
 
 	// Clear the window anew each time
 	tickit_renderbuffer_goto(rb, 0, 0);
 	tickit_renderbuffer_clear(rb);
 
+	// should be unrefed
 	TickitPen *p = tickit_pen_new();
 	tickit_pen_set_colour_attr_desc(p, TICKIT_PEN_FG, "white");
 	tickit_pen_set_bool_attr(p, TICKIT_PEN_BLINK, true);
@@ -285,6 +294,9 @@ static void empty_bundle(void)
 	tickit_window_close(bundle.root);
 	tickit_unref(bundle.t);
 	
+	// should I reset all the values to NULL?
+	// I'm exiting right away anyway
+
 	exit(EXIT_SUCCESS);
 }
 
@@ -295,6 +307,7 @@ int main(int argc, char *argv[])
     printf("Welcome to dirview. It's probably not complete yet.\n");
 
 	bundle.t = (Tickit *) tickit_new_stdtty();
+
     if(bundle.t == NULL) 
 	{
 		fprintf(stderr, "Cannot create Tickit - %s\n", strerror(errno));
@@ -318,6 +331,9 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Cannot create typer window - %s\n", strerror(errno));
 		return 1;
 	} 
+	// not currently working
+	tickit_window_set_cursor_visible(bundle.typer, true);
+	tickit_window_set_cursor_shape(bundle.typer, TICKIT_CURSORSHAPE_BLOCK);
 
 
 	tickit_window_bind_event(bundle.root, (TickitWindowEvent) TICKIT_WINDOW_ON_KEY, (TickitBindFlags) 0, &rootOnKey, NULL);
