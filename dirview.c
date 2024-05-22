@@ -103,6 +103,8 @@ static void empty_bundle(void);
 /**
  * @brief Expose event function called for root on spawn and any subsequent times expose is called. 
  * 
+ * Help me I'm trying to write better documentation.
+ * 
  * @param root 
  * @param flags 
  * @param _info 
@@ -114,6 +116,8 @@ static int rootOnExpose (TickitWindow *root, TickitEventFlags flags, void *_info
 	TickitExposeEventInfo *info = _info;
 	TickitRenderBuffer *rb = info->rb;
 	TickitRect rect = info->rect;
+
+	
 
 	int cols  = rect.cols,
 		lines = rect.lines;
@@ -128,7 +132,13 @@ static int rootOnExpose (TickitWindow *root, TickitEventFlags flags, void *_info
 /**
  * @brief Event called when the root window experiences a key.
  * Modifies `lastKey` global variable.
- * Check if CTRL+Z was pressed, if so pauses the terminal. Can be replaced with `fg`. 
+ * 
+ * @details
+ * Bindings:
+ * 	CTRL + Z: pause, restore with fg.
+ * 	ALT + Q : call exit function, quit. Safer than CTRL + C. 
+ * 		aka Meta + Q if that's your poison
+ * 
  * 
  * @param root root
  * @param flags 
@@ -339,6 +349,9 @@ int main(int argc, char *argv[])
 	tickit_window_bind_event(bundle.root, (TickitWindowEvent) TICKIT_WINDOW_ON_KEY, (TickitBindFlags) 0, &rootOnKey, NULL);
 	tickit_window_bind_event(bundle.typer, (TickitWindowEvent) TICKIT_WINDOW_ON_EXPOSE, (TickitBindFlags) 0, &typerOnExpose, NULL);
 	tickit_window_expose(bundle.typer, NULL);
+
+	
+	
 
 	tickit_run(bundle.t);
 
