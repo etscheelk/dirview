@@ -11,6 +11,10 @@
 #include <tickit.h>
 #include <math.h>
 
+// Display names of all files in current directory
+// https://stackoverflow.com/questions/4204666/how-to-list-files-in-a-directory-in-a-c-program
+#include <dirent.h>
+
 #define streq(a,b) (!strcmp(a,b))
 
 
@@ -30,11 +34,14 @@ static struct bundle
 	//
 	TickitWindow *typer;
 
+	//
+	TickitWindow *dirDisplay;
+
 	// Buffer for the text we store in the typer. Size determined by 2*cols.
 	// Declared first in typerOnExpose.
 	// Size is cols for flexibility on window resize (not implemented currently)
 	char *typerBuffer;
-} bundle = {.t = NULL, .root = NULL, .typer = NULL, .typerBuffer = NULL};
+} bundle = {.t = NULL, .root = NULL, .typer = NULL, .dirDisplay = NULL, .typerBuffer = NULL};
 
 
 static enum extraKey
@@ -102,8 +109,6 @@ static void empty_bundle(void);
 
 /**
  * @brief Expose event function called for root on spawn and any subsequent times expose is called. 
- * 
- * Help me I'm trying to write better documentation.
  * 
  * @param root 
  * @param flags 
@@ -245,6 +250,8 @@ static int typerOnExpose(TickitWindow *typer, TickitEventFlags flags, void *_inf
 	tickit_renderbuffer_setpen(rb, p);
 
 	// Am I really using goto statements? Yes. 
+	// 			--- Know thy enemy --- 
+	// 
 	// These could be extracted to functions in a typer header file
 	// but ew I have so many global variables (that's bad enough itself)
 	switch(extraKeyInfo.ex) 
@@ -274,6 +281,8 @@ static int typerOnExpose(TickitWindow *typer, TickitEventFlags flags, void *_inf
 		// First time running will auto expose typer and this avoids segfault
 		if (lastKey.str == NULL) goto exit;
 		
+
+		/// @warning Issues abound if the thing you're writing to buffer is more than 1 char 
 		if (numTyped < typerWidth)
 		{
 			strncat(bundle.typerBuffer, lastKey.str, 10);
@@ -293,6 +302,20 @@ static int typerOnExpose(TickitWindow *typer, TickitEventFlags flags, void *_inf
 }
 
 
+static int dirDisplayOnExpose(TickitWindow *disDisplay, TickitEventFlags flags, void *_info, void *data)
+{
+	TickitExposeEventInfo *info = _info;
+	TickitRenderBuffer *rb = info->rb; // does not need to be unrefed
+	TickitRect rect = info->rect;
+
+	DIR *d;
+	struct dirent *dir;
+
+	d = opendir(".");
+
+	return 0;
+}
+
 /**
  * @brief Dereference or close items in bundle in reverse order
  * 
@@ -300,6 +323,7 @@ static int typerOnExpose(TickitWindow *typer, TickitEventFlags flags, void *_inf
 static void empty_bundle(void)
 {
 	free(bundle.typerBuffer);
+	tickit_window_close(bundle.dirDisplay);
 	tickit_window_close(bundle.typer); 
 	tickit_window_close(bundle.root);
 	tickit_unref(bundle.t);
@@ -346,8 +370,19 @@ int main(int argc, char *argv[])
 	tickit_window_set_cursor_shape(bundle.typer, TICKIT_CURSORSHAPE_BLOCK);
 
 
+	bundle.dirDisplay = (TickitWindow *) tickit_window_new(bundle.root, (TickitRect){.top=0, .cols=termRect.cols, .left=0, .lines = termRect.lines-2}, (TickitWindowFlags) 0);
+	if (bundle.dirDisplay == NULL)
+	{
+		fprintf(stderr, "Cannot create dir display window - %s\n", strerror(errno));
+		return 1;
+	}
+
+
 	tickit_window_bind_event(bundle.root, (TickitWindowEvent) TICKIT_WINDOW_ON_KEY, (TickitBindFlags) 0, &rootOnKey, NULL);
 	tickit_window_bind_event(bundle.typer, (TickitWindowEvent) TICKIT_WINDOW_ON_EXPOSE, (TickitBindFlags) 0, &typerOnExpose, NULL);
+	
+	tickit_window_bind_event(bundle.dirDisplay, (TickitWindowEvent) TICKIT_WINDOW_ON_EXPOSE, (TickitBindFlags) 0, &dirDisplayOnExpose, NULL);
+
 	tickit_window_expose(bundle.typer, NULL);
 
 	
