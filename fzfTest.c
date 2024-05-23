@@ -11,6 +11,7 @@
 
 #include <sys/wait.h> // for wait
 
+// https://www.cs.uleth.ca/~holzmann/C/system/pipeforkexec.html <-- source for pipe and stuff
 
 /*
     Process:
