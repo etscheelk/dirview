@@ -5,7 +5,8 @@
         "strings.h": "c",
         "string.h": "c",
         "memory.h": "c",
-        "dirent.h": "c"
+        "dirent.h": "c",
+        "fcntl.h": "c"
     },
     "C_Cpp.errorSquiggles": "enabled"
 }
