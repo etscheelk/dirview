@@ -313,6 +313,8 @@ static int dirDisplayOnExpose(TickitWindow *disDisplay, TickitEventFlags flags, 
 
 	d = opendir(".");
 
+	closedir(d);
+
 	return 0;
 }
 
