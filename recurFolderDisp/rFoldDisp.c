@@ -22,7 +22,7 @@ void show_dir_content(char *path)
 		return;						   // if was not able, return
 	struct dirent *dir;				   // for the directory entries
 	while ((dir = readdir(d)) != NULL) // if we were able to read somehting from the directory
-	{
+	{	
 		if (dir->d_type != DT_DIR) // if the type is not directory just print it with blue color
 			printf("%s%s\n", BLUE, dir->d_name);
 		else if (dir->d_type == DT_DIR && strcmp(dir->d_name, ".") != 0 && strcmp(dir->d_name, "..") != 0) // if it is a directory

@@ -11,7 +11,7 @@
 
 #include <sys/wait.h> // for wait
 
-// https://www.cs.uleth.ca/~holzmann/C/system/pipeforkexec.html <-- source for pipe and stuff
+// https://www.cs.uleth.ca/~holzmann/C/system/pipeforkexec.html <--- source for pipe and stuff
 
 /*
     Process:
@@ -29,8 +29,16 @@
 
 */
 
+#define FILTER_LEN 128
+
+void printError(void)
+{
+    perror(strerror(errno));
+}
+
 int main(int argc, char *argv[])
 {
+    errno = 0;
     // use `open` to create a file descriptor
     // int fd = open("testFile.txt", O_RDWR | O_CLOEXEC | O_CREAT, S_IRWXU);
     
@@ -64,18 +72,38 @@ int main(int argc, char *argv[])
         // close write-end of pipe
         // exec
 
+        // child runs this command, prints contents of file,
+        // sent to stdout
         char *args[] = {"cat", "testFile.txt", NULL};
 
-        close(fdpair[0]);
-        dup2(fdpair[1], STDOUT_FILENO);
-        close(fdpair[1]);
+        int p = close(fdpair[0]);
+        if (p == -1)
+        {
+            printError();
+        }
 
-        // printf("I'm the child and I should be done first\n");
 
-        execvp(args[0], args);
+        p = dup2(fdpair[1], STDOUT_FILENO);
+        if (p == -1)
+        {
+            printError();
+        }
+
+
+        p = close(fdpair[1]);
+        if (p == -1)
+        {
+            printError();
+        }
+
+        p = execvp(args[0], args);
         
         // if here exec failed
-        _exit(1);
+        // if (p == -1) // not necessary
+        {
+            perror(strerror(errno));
+            _exit(1);
+        }
     }
 
     else            // if parent
@@ -86,27 +114,61 @@ int main(int argc, char *argv[])
         // exec
 
 
-
+        // Wait for child to finish their sending first, 
+        // so I don't read empty
         status = 0;
         waitpid(pid, &status, WEXITED);
 
-        // fprintf(stdout, "I'm the parent and I wait for the child to be done");
+        
+        
+        char filterBuf[FILTER_LEN] = "";
+        // can't use quotes around it, i.e. "--filter=\"%s\""
+        // Good and bad. BASH is the one usually being helpful with quotes, but 
+        //      running exec isn't doing bash. 
+        // However, exec doesn't care if there are spaces in the arguments,
+        //      the arguments are already parsed and split!! So it will
+        //      still assume it is part of the current argument (filter).
+        snprintf(filterBuf, FILTER_LEN, "--filter=%s", argv[1]);
 
-        char filterBuf[128] = "--filter=";
-        strcat(filterBuf, argv[1]);
+        // Can use strcat (annoying) or snprintf (easier) (probably safer)
+        // char filterBuf[FILTER_LEN] = "--filter=";
+        // strcat(filterBuf, argv[1]);
 
-        char *args[] = {"fzf", filterBuf, NULL};
+        for (int i = 0; i < FILTER_LEN; ++i)
+        {
+            printf("%3d\t%c\n", filterBuf[i], filterBuf[i]);
+        }
+        printf("%s\n", filterBuf);
 
-        close(fdpair[1]);
-        dup2(fdpair[0], STDIN_FILENO);
-        close(fdpair[0]);
-        execvp(args[0], args);
-        _exit(1);
+        // ^ I'll need to put quotes around 
+
+
+        char *args[] = {"fzf", "--print-query", filterBuf, NULL};
+
+        int p = close(fdpair[1]);
+        if (p == -1)
+        {
+            printError();
+        }
+
+        p = dup2(fdpair[0], STDIN_FILENO);
+        if (p == -1)
+        {
+            printError();
+        }
+
+        p = close(fdpair[0]);
+        if (p == -1)
+        {
+            printError();
+        }
+
+        p = execvp(args[0], args);
+        // if here exec failed
+        // if (p == -1) // not necessary
+        {
+            perror(strerror(errno));
+            _exit(1);
+        }
     }
-
-    // printf("pipe pair: %d --- %d\n", fdpair[0], fdpair[1]);
-
-    // char *testArgs[] = {"fzf", "--filter=dir", NULL};
-
-    // execvp(testArgs[0], testArgs);
 }
