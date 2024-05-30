@@ -8,11 +8,11 @@
 
 // dumbass linter or language server
 // confused by conditional definition of DT_DIR in dirent.h
-#define TEST
-#ifdef TEST
-#define DT_DIR 4
-#endif
-#undef TEST
+// #define TEST
+// #ifdef TEST
+// #define DT_DIR 4
+// #endif
+// #undef TEST
 
 /* let us make a recursive function to print the content of a given folder */
 void show_dir_content(char *path)
