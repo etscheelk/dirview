@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
+// #include <stdlib.h>
+// #include <bits/waitflags.h>
 #include <string.h>
 #include <errno.h>
 
@@ -119,6 +121,7 @@ int main(int argc, char *argv[])
 		// Wait for child to finish their sending first,
 		// so I don't read empty
 		status = 0;
+		
 		waitpid(pid, &status, WEXITED);
 
 		char filterBuf[FILTER_LEN] = "";

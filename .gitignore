@@ -1,6 +1,7 @@
 # Binary files
 dirview
 fzfTest
+dirReader
 
 # Prerequisites
 *.d
