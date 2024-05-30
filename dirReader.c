@@ -64,18 +64,20 @@
 //     _a > _b ? _a : _b;       \
 // })
 
-// #define min(a,b)             \
-// ({                           \
-//     __typeof__ (a) _a = (a); \
-//     __typeof__ (b) _b = (b); \
-//     _a < _b ? _a : _b;       \
-// })
+#define min(a,b)             \
+({                           \
+    __typeof__ (a) _a = (a); \
+    __typeof__ (b) _b = (b); \
+    _a < _b ? _a : _b;       \
+})
+
 
 
 int dirview_readdir();
 int dirview_filterdir();
 
 #define FILE_NAME_LEN 256
+#define DIRENT_NAME_LEN 256
 #define FILTER_LEN 128
 #define DIR_TEXT_NAME ("./dircontents.txt")
 #define DIR_TEXT_NAME_FILTERED ("./dircontentsfilt.txt")
@@ -99,13 +101,13 @@ int dirview_readdir()
     FILE *f = fopen(DIR_TEXT_NAME, "w");
     while ( (dir = readdir(d)) != NULL )
     {
-        size_t len = strnlen(dir->d_name, 256); // see dirent definition, 256 bytes
+        size_t len = strnlen(dir->d_name, DIRENT_NAME_LEN); // see dirent definition, 256 bytes
 
         // question: copying over len will ignore \0. Consider implications. 
         size_t numToCopy = len < FILE_NAME_LEN ? len : FILE_NAME_LEN;
 
         memcpy(thisFileName, dir->d_name, numToCopy); // note: memcpy when fields non-overlapping, see man page
-        
+
         // 1. use open (a system call). Maybe slower, maybe not portable
         // write(fd, thisFileName, numToCopy);
         // write(fd, "\n", 1);
@@ -183,7 +185,7 @@ int dirview_filterdir(const char * filter)
         p = execvp(args[0], args);
 
         // only here if exec failed
-        perror("exec did not run");
+        perror("child exec did not run");
         _exit(EXIT_FAILURE);
     }
     else            // parent
@@ -196,8 +198,27 @@ int dirview_filterdir(const char * filter)
 		// Wait for child to finish their sending first,
 		// so I don't read empty
 
+        p = close(fd_read_write[1]);
+        if (p == -1)
+        {
+            perror("parent write end pipe closed failed");
+        }
+
+        p = dup2(fd_read_write[0], STDIN_FILENO);
+        if (p == -1)
+        {
+            perror("parent dup2 on read end failed");
+        }
+
+        p = close(fd_read_write[0]);
+        if (p == -1)
+        {
+            perror("parent read end pipe close failed");
+        }
+
         int status = 0;
-        waitpid(pid, &status, WEXITED);
+        // waitpid(pid, &status, WEXITED);
+        wait(&status);
 
         char filterBuf[FILTER_LEN];
         memset(filterBuf, 0, FILTER_LEN);
@@ -210,7 +231,7 @@ int dirview_filterdir(const char * filter)
 		//      still assume it is part of the current argument (filter).
 		snprintf(filterBuf, FILTER_LEN, "--filter=%s", filter);
 
-        char *args[] = {"fzf", "--print-query", filterBuf, NULL};
+        char *args[] = {"fzf", filterBuf, NULL};
 
         pid_t pid2 = fork();
 
@@ -223,7 +244,8 @@ int dirview_filterdir(const char * filter)
         else
         {
             status = 0;
-            waitpid(pid2, &status, WEXITED);
+            // waitpid(pid2, &status, WIFEXITED);
+            wait(&status);
         }
     }
 
