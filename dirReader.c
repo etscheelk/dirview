@@ -6,13 +6,15 @@
 #include <dirent.h> // directory abstraction (DIR struct)
 #include <errno.h>
 
-#include <math.h>
+// #include <math.h>
 
 #include <sys/types.h> // types and stat for open
 #include <sys/stat.h> // stat means status
-#include <fcntl.h>
+// #include <fcntl.h>
 #include <sys/wait.h> // waitpid
 
+
+#include "dirReader.h"
 
 /*
     API functions:
@@ -72,14 +74,14 @@
 
 
 
-int dirview_readdir();
-int dirview_filterdir(const char *);
+// int dirview_readdir();
+// int dirview_filterdir(const char *);
 
-#define FILE_NAME_LEN 256
-#define DIRENT_NAME_LEN 256
-#define FILTER_LEN 128
-#define DIR_TEXT_NAME ("./dircontents.txt")
-#define DIR_TEXT_NAME_FILTERED ("./dircontentsfilt.txt")
+// #define FILE_NAME_LEN 256
+// #define DIRENT_NAME_LEN 256
+// #define FILTER_LEN 128
+// #define DIR_TEXT_NAME ("./dircontents.txt")
+// #define DIR_TEXT_NAME_FILTERED ("./dircontentsfilt.txt")
 
 // assume for now, save to file called "dir"
 // assume local position for now `./`
@@ -139,7 +141,7 @@ int dirview_readdir()
 }
 
 
-int dirview_filterdir(const char * filter)
+int dirview_filterdir(char *filter)
 {
     errno = 0;
 
@@ -274,6 +276,15 @@ int dirview_filterdir(const char * filter)
 
 // https://stackoverflow.com/questions/174531/how-to-read-the-content-of-a-file-to-a-string-in-c
 // getdelim function, pass NULL buffer. 
+/**
+ * @brief Given a file named in DIR_TEXT_NAME_FILTERED,
+ * read it and return it as a malloc'd string.
+ * 
+ * @warning Free returned string after use.
+ * 
+ * @return char* Single string representing the filtered 
+ * contents of the current directory.
+ */
 char *dirview_readfilter()
 {
     FILE *filterFile = fopen(DIR_TEXT_NAME_FILTERED, "r");
@@ -289,14 +300,23 @@ char *dirview_readfilter()
 
     fclose(filterFile);
 
-    printf("bytes read: %zd\n", bytes_read);
+    // printf("bytes read: %zd\n", bytes_read);
+
+    if (bytes_read == -1)
+    {
+        // it still mallocs something even if there's nothing
+        free(buffer);
+        
+        buffer = malloc(sizeof(char) * 1);
+        buffer[0] = '\0';
+    }
 
     return buffer;
 }
 
-
+#ifndef DIRVIEW_LINKED
 // remove main
-int main(int argc, char const *argv[])
+int main(int argc, char *argv[])
 {
     /* code */
     dirview_readdir();
@@ -320,3 +340,4 @@ int main(int argc, char const *argv[])
 
     return 0;
 }
+#endif

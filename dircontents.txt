@@ -7,10 +7,11 @@ foldDisp.c
 fzfTest
 .git
 dirview.c
-dirReader
 recurFolderDisp
+dirReader.h
 dircontents.txt
 testFile.txt
+dirReader.o
 .vscode
 dirReader.c
 Makefile

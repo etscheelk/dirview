@@ -12,7 +12,8 @@
         "wait.h": "c",
         "stdlib.h": "c",
         "waitflags.h": "c",
-        "types.h": "c"
+        "types.h": "c",
+        "dirreader.h": "c"
     },
     "C_Cpp.errorSquiggles": "enabled"
 }

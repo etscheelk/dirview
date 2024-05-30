@@ -15,6 +15,9 @@
 // https://stackoverflow.com/questions/4204666/how-to-list-files-in-a-directory-in-a-c-program
 #include <dirent.h>
 
+// local headers
+#include "dirReader.h"
+
 #define streq(a,b) (!strcmp(a,b))
 
 
@@ -229,6 +232,8 @@ static int typerOnExpose(TickitWindow *typer, TickitEventFlags flags, void *_inf
 		typerWidth = rect.cols - 2; // -2 because of extra gap from "> "
 		bundle.typerBuffer = malloc(typerWidth * sizeof(char));
 		
+		memset(bundle.typerBuffer, 0, sizeof(char) * typerWidth);
+
 		// make empty
 		for (int i = 0; i < typerWidth; ++i)
 		{
@@ -296,6 +301,8 @@ static int typerOnExpose(TickitWindow *typer, TickitEventFlags flags, void *_inf
 
 	exit:
 	{
+		tickit_window_expose(bundle.dirDisplay, NULL);
+
 		tickit_pen_unref(p);
 		return 1;
 	}
@@ -308,12 +315,25 @@ static int dirDisplayOnExpose(TickitWindow *disDisplay, TickitEventFlags flags, 
 	TickitRenderBuffer *rb = info->rb; // does not need to be unrefed
 	TickitRect rect = info->rect;
 
-	DIR *d;
-	struct dirent *dir;
+	dirview_readdir();
+	char *out = NULL;
+	if (bundle.typerBuffer != NULL)
+	{
+		dirview_filterdir("dir");
+		out = dirview_readfilter();
+	}
 
-	d = opendir(".");
+	if (out != NULL)
+	{
+		tickit_renderbuffer_text(rb, "hello!");
+		free(out);
+	}
 
-	closedir(d);
+
+	// char *out = dirview_readfilter();
+	// tickit_renderbuffer_text(rb, out);
+	// free(out);
+
 
 	return 0;
 }
@@ -339,6 +359,7 @@ static void empty_bundle(void)
 
 int main(int argc, char *argv[]) 
 {
+	
 	tickit_debug_enabled = true;
     printf("Welcome to dirview. It's probably not complete yet.\n");
 
@@ -386,6 +407,7 @@ int main(int argc, char *argv[])
 	tickit_window_bind_event(bundle.dirDisplay, (TickitWindowEvent) TICKIT_WINDOW_ON_EXPOSE, (TickitBindFlags) 0, &dirDisplayOnExpose, NULL);
 
 	tickit_window_expose(bundle.typer, NULL);
+	tickit_window_expose(bundle.dirDisplay, NULL);
 
 	
 	

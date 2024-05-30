@@ -1,5 +1,7 @@
+dirview
 dirview.c
-fzfTest.c
-foldDisp.c
+dirReader.h
+dirReader.o
 dirReader.c
-.vscode
+dircontents.txt
+dircontentsfilt.txt
