@@ -63,18 +63,17 @@
 //     __typeof__ (b) _b = (b); \
 //     _a > _b ? _a : _b;       \
 // })
-
-#define min(a,b)             \
-({                           \
-    __typeof__ (a) _a = (a); \
-    __typeof__ (b) _b = (b); \
-    _a < _b ? _a : _b;       \
+// #define min(a,b)             \
+// ({                           \
+//     __typeof__ (a) _a = (a); \
+//     __typeof__ (b) _b = (b); \
+//     _a < _b ? _a : _b;       \
 })
 
 
 
 int dirview_readdir();
-int dirview_filterdir();
+int dirview_filterdir(const char *);
 
 #define FILE_NAME_LEN 256
 #define DIRENT_NAME_LEN 256
@@ -94,11 +93,21 @@ int dirview_readdir()
 
     struct dirent *dir;
     char thisFileName[FILE_NAME_LEN]; // max length name we could print
-    memset(thisFileName, 0, FILE_NAME_LEN);
+    memset(thisFileName, 0, FILE_NAME_LEN * sizeof(char));
 
     // O_TRUNC shortens file
     // int fd = open("dircontents.txt", O_RDWR | O_CLOEXEC | O_CREAT | O_TRUNC, S_IRWXU);
     FILE *f = fopen(DIR_TEXT_NAME, "w");
+    
+    // can use temp file, but it closes upon fclose
+    // may write different chain where these functions are passed a FILE stream 
+    //      this is probably better than using system calls and cat. Just read and write from stream instead.
+    // FILE *f = tmpfile(); // opens in read-write 
+    if (f == NULL)
+    {
+        perror("dir text file open failed");
+    }
+
     while ( (dir = readdir(d)) != NULL )
     {
         size_t len = strnlen(dir->d_name, DIRENT_NAME_LEN); // see dirent definition, 256 bytes
@@ -106,7 +115,7 @@ int dirview_readdir()
         // question: copying over len will ignore \0. Consider implications. 
         size_t numToCopy = len < FILE_NAME_LEN ? len : FILE_NAME_LEN;
 
-        memcpy(thisFileName, dir->d_name, numToCopy); // note: memcpy when fields non-overlapping, see man page
+        memcpy(thisFileName, dir->d_name, numToCopy * sizeof(char)); // note: memcpy when fields non-overlapping, see man page
 
         // 1. use open (a system call). Maybe slower, maybe not portable
         // write(fd, thisFileName, numToCopy);
@@ -121,6 +130,7 @@ int dirview_readdir()
         // memset(thisFileName, 0, FILE_NAME_LEN);
     }
 
+    // fwrite("\0", sizeof(char), 1, f);
     closedir(d);
     fclose(f);
     // close(fd);
@@ -217,11 +227,12 @@ int dirview_filterdir(const char * filter)
         }
 
         int status = 0;
-        // waitpid(pid, &status, WEXITED);
+        // int wstatus = 0;
+        // waitpid(pid, &status, WIFEXITED(wstatus));
         wait(&status);
 
         char filterBuf[FILTER_LEN];
-        memset(filterBuf, 0, FILTER_LEN);
+        memset(filterBuf, 0, FILTER_LEN * sizeof(char));
 
         // can't use quotes around it, i.e. "--filter=\"%s\""
 		// Good and bad. BASH is the one usually being helpful with quotes, but
@@ -236,7 +247,15 @@ int dirview_filterdir(const char * filter)
         pid_t pid2 = fork();
 
         if (pid2 == 0)
-        {
+        {   
+            FILE *filterOutFile = fopen(DIR_TEXT_NAME_FILTERED, "w+");
+            int fd = fileno(filterOutFile);
+
+            // don't need pipe! Pipe seems just for communication across processes
+            dup2(fd, STDOUT_FILENO);
+            close(fd);
+            fclose(filterOutFile);
+
             execvp(args[0], args);
 
             _exit(EXIT_FAILURE);
@@ -244,13 +263,35 @@ int dirview_filterdir(const char * filter)
         else
         {
             status = 0;
-            // waitpid(pid2, &status, WIFEXITED);
+            // wstatus = 0;
+            // waitpid(pid2, &status, WIFEXITED(wstatus));
             wait(&status);
         }
     }
 
-
     return EXIT_SUCCESS;
+}
+
+// https://stackoverflow.com/questions/174531/how-to-read-the-content-of-a-file-to-a-string-in-c
+// getdelim function, pass NULL buffer. 
+char *dirview_readfilter()
+{
+    FILE *filterFile = fopen(DIR_TEXT_NAME_FILTERED, "r");
+
+    char *buffer = NULL;
+    size_t len = 0;
+    ssize_t bytes_read = getdelim(
+        &buffer, 
+        &len, 
+        '\0', 
+        filterFile
+    );
+
+    fclose(filterFile);
+
+    printf("bytes read: %zd\n", bytes_read);
+
+    return buffer;
 }
 
 
@@ -261,6 +302,21 @@ int main(int argc, char const *argv[])
     dirview_readdir();
 
     dirview_filterdir(argv[1]);
+
+    char *buf = dirview_readfilter();
+
+    // printf("%p\n", buf);
+
+    printf("Here are the results:\n%s\n", buf);
+    // for (int i = 0; *(buf+i) != '\0'; ++i)
+    // {
+    //     // putc(*(buf+i), stdout);
+    //     printf("_%d_", *(buf+i));
+    // }
+
+    // printf("%s---\n", *buf);
+
+    free(buf);
 
     return 0;
 }

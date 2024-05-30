@@ -1,0 +1,5 @@
+dirview.c
+fzfTest.c
+foldDisp.c
+dirReader.c
+.vscode

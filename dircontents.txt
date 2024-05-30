@@ -2,6 +2,7 @@ dirview
 .gitignore
 LICENSE
 README.md
+dircontentsfilt.txt
 foldDisp.c
 fzfTest
 .git
