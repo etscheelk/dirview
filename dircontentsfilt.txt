@@ -1,7 +1,8 @@
 dirview
+dirReader
 dirview.c
-dirReader.h
 dirReader.o
 dirReader.c
+dirReader.h
 dircontents.txt
 dircontentsfilt.txt

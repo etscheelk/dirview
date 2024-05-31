@@ -315,19 +315,26 @@ static int dirDisplayOnExpose(TickitWindow *disDisplay, TickitEventFlags flags, 
 	TickitRenderBuffer *rb = info->rb; // does not need to be unrefed
 	TickitRect rect = info->rect;
 
+	tickit_renderbuffer_goto(rb, 0, 0);
+	tickit_renderbuffer_clear(rb);
+
 	dirview_readdir();
 	char *out = NULL;
-	if (bundle.typerBuffer != NULL)
-	{
-		dirview_filterdir("dir");
-		out = dirview_readfilter();
-	}
 
-	if (out != NULL)
-	{
-		tickit_renderbuffer_text(rb, "hello!");
-		free(out);
-	}
+	dirview_filterdir("dir");
+
+	tickit_renderbuffer_text(rb, "Hi I'm writing in the dir display");
+	// if (bundle.typerBuffer != NULL)
+	// {
+	// 	dirview_filterdir("dir");
+	// 	out = dirview_readfilter();
+	// }
+
+	// if (out != NULL)
+	// {
+	// 	tickit_renderbuffer_text(rb, "hello!");
+	// 	free(out);
+	// }
 
 
 	// char *out = dirview_readfilter();
@@ -348,6 +355,7 @@ static void empty_bundle(void)
 	tickit_window_close(bundle.dirDisplay);
 	tickit_window_close(bundle.typer); 
 	tickit_window_close(bundle.root);
+	tickit_stop(bundle.t);
 	tickit_unref(bundle.t);
 	
 	// should I reset all the values to NULL?
@@ -408,7 +416,6 @@ int main(int argc, char *argv[])
 
 	tickit_window_expose(bundle.typer, NULL);
 	tickit_window_expose(bundle.dirDisplay, NULL);
-
 	
 	
 
