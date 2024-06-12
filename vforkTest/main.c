@@ -5,17 +5,37 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define N 2
+
+#define forxy \
+for (int x = 0; x < N; ++x) \
+    for (int y = 0; y < N; ++y)
+
+
+
 int main(int argc, char *argv[])
 {
+    #ifdef fun
+    forxy {
+        printf("%d -- %d\n", x, y);
+    }
+    #endif
+
     int fd_read_write[2] = {0, 0};
 
+    int fds2[2] = {0, 0};
+
     pipe(fd_read_write);
+    // pipe(fds2);
+
+    // fds2[]
 
     FILE *tmp = tmpfile();
     int fd = fileno(tmp);
     // dup2(fd, STDOUT_FILENO);
+    dup2(STDOUT_FILENO, fd);
 
-    dup2(fd_read_write[0], fd);
+    dup2(fd_read_write[0], STDIN_FILENO);
     close(fd_read_write[0]);
 
     dup2(fd_read_write[1], STDOUT_FILENO);
@@ -29,13 +49,18 @@ int main(int argc, char *argv[])
 
     if (pid == 0)
     {
+        // printf("before exec\n");
         execvp(args1[0], args1);
 
         _exit(EXIT_FAILURE);
     }
     else
     {
-        wait(NULL);
+        
+        // printf("Before Wait\n");
+        // wait(NULL);
+        // printf("After wait\n");
+        // fprintf(stderr, "After wait\n");
         
         // char buf[1024] = "";
         char *buf = NULL;
@@ -49,8 +74,12 @@ int main(int argc, char *argv[])
         // read(fd, buf, 128);
         buf[0] = 'X';        
 
-        printf("\nbuff:\n%s\n", buf);
-        printf("num bytes: %zd", num_bytes);
+        printf("num bytes: %zd\n", num_bytes);
+        printf("\n--buff--\n%s\n--buff done--\n", buf);
+
+        for (int i = 0; i < num_bytes; ++i) {
+            printf("%c\n", buf[i]);
+        }
 
         free(buf);
     }
